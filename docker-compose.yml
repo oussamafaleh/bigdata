@@ -1,0 +1,93 @@
+version: "3"
+
+services:
+
+  noeud-maitre:
+    hostname: noeud-maitre
+    container_name: noeud-maitre
+    image: bigdata/cluster-hadoop:latest
+    build:
+      context: .
+      args:
+        http_proxy: ${http_proxy}
+        https_proxy: ${https_proxy}
+    volumes: # Monter un volumer pour le partage entre Host et container
+      - ./:/jupyter_env
+      # - /Users/takoua/Documents/BigData/BigData-2020/Labs/BigDataLab:/jupyter_env
+    command: AllService #Parametre definit (execute tous les services)  dans le scripte pour ENTRYPOINT 
+    tty: true
+    env_file: # transmettre un fichier qui export les variable d'environmnent
+      - docker-compose.env  
+    environment:
+      - http_proxy=${http_proxy}
+      - https_proxy=${https_proxy}
+    expose: 
+      - 50070 #Port de NameNode/MasterNode
+      - 8088 #port de RessourceManager
+      - 9000 #port de HDFS
+      - 8888 #port jupyter
+    ports:  #mapage de port Port_Host:Port_Service_en_Container
+      - "50070:50070" 
+      - "8088:8088"
+      - "9000:9000"
+      - "8899:8888" #mappage de port jupyter du cluster hadoop accesible sur localhost:8899
+  noeud-slave1:
+    hostname: noeud-slave1
+    container_name: noeud-slave1
+    image: bigdata/cluster-hadoop:latest
+    command: slave
+    tty: true
+    env_file:
+      - docker-compose.env
+    expose: 
+      - 8042 #Port de NodeManager
+    ports:
+      - 8041:8042 
+    depends_on: 
+      - noeud-maitre
+
+  noeud-slave2:
+    hostname: noeud-slave2
+    container_name: noeud-slave2
+    image: bigdata/cluster-hadoop:latest
+    command: slave
+    tty: true
+    env_file:
+      - docker-compose.env
+    expose: 
+      - 8042
+    ports:
+      - 8042:8042
+    depends_on: 
+      - noeud-maitre
+
+  noeud-jupyter:
+      hostname: jupyter
+      container_name: jupyter
+      image: bigdata/dev-env:latest
+      build:
+        context: . # builder l'image à partir de configuration locale 
+        dockerfile: jupyter/Dockerfile-dev #crée l'image  à partir d'un autre fichier dockerfil definit
+        args:
+          http_proxy: ${http_proxy}
+          https_proxy: ${https_proxy}
+      volumes:
+        - ./:/jupyter_env
+        # - /Users/takoua/Documents/BigData/BigData-2020/Labs/BigDataLab:/jupyter_env
+      command: AllServicedev
+      env_file:
+        - jupyter/docker-compose-dev.env
+      environment:
+        - http_proxy=${http_proxy}
+        - https_proxy=${https_proxy}
+      expose: 
+        - 8888 #Port de Jupyter Notebook pour le container Dev 
+      ports:
+        - "8889:8888"  #mapage de  Port_jupyter_en_Container à un  port_Host 8099
+#networks:
+ # default:
+  #  external:
+   #   name: bigdata #NB le reseaux deja existe 
+  #sino on a pas réseaux definit on remplace par : 
+networks:
+  bigdata: # Nom_du_Reseaux_à_Créer:

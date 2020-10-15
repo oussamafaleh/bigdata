@@ -1,0 +1,66 @@
+FROM ubuntu:18.04
+
+MAINTAINER ahmed cheibani <ahmedcheibany@gmail.com>
+
+WORKDIR /root
+
+# installer openssh-server, openjdk et wget libghc-iproute-doc 
+RUN apt-get update && apt-get install -y openssh-server openjdk-8-jdk wget vim nano python3-pip net-tools
+#les dependencies de  PySpark
+# apt-get install -y python3 python3-pip python3-numpy python3-matplotlib python3-scipy python3-pandas python3-simpy
+
+# install spark Hadooop
+RUN wget https://downloads.apache.org/spark/spark-2.4.7/spark-2.4.7-bin-hadoop2.7.tgz && \
+    tar -xzvf spark-2.4.7-bin-hadoop2.7.tgz && \
+    mv spark-2.4.7-bin-hadoop2.7 /usr/local/spark && \
+    rm spark-2.4.7-bin-hadoop2.7.tgz
+
+# install kafka 1.0.2
+RUN wget https://archive.apache.org/dist/kafka/1.0.2/kafka_2.11-1.0.2.tgz && \
+    tar -xzvf kafka_2.11-1.0.2.tgz && \
+    mv kafka_2.11-1.0.2 /usr/local/kafka && \
+    rm kafka_2.11-1.0.2.tgz
+
+#ajouter tous les variable dans l'environment de variable 
+ENV PATH=$PATH:/usr/local/spark/bin:/usr/local/kafka/bin:/usr/local/hbase/bin 
+
+#creation de repertoire de config
+RUN mkdir -p /jupyter_env && \
+    mkdir -p /root/.jupyter
+
+#Copier les configuration de juputer
+COPY jupyter/jupyter_notebook_config.py /root/.jupyter/
+
+#copier la scripte d'execution des services
+#avec ce type de nom j'ai eu des probles 
+#donc j'etais aublige de chgé vers service-dev.sh 
+#au lieu de services_dev.sh 
+#COPY ./script_config/services_dev.sh /
+
+
+#---------------------------------
+RUN ssh-keygen -t rsa -f ~/.ssh/id_rsa -P '' && \
+    cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
+COPY script_config/ssh_config /root/.ssh/config
+
+
+
+RUN pip3 install jupyter
+RUN pip3 install pandas
+
+#Crée des lien symbolique pour Python tous court
+RUN ln -s /usr/lib/python3.6 /usr/lib/python   
+RUN ln -s /usr/bin/python3.6 /usr/bin/python
+
+COPY script_config/servicedev.sh /root/
+RUN chmod +x /root/servicedev.sh
+
+#injecter le script de demmarge des service 
+
+#injecter le script de demmarge des service
+#Remarque entry point doit etre avec 2 ""
+ENTRYPOINT ["/root/servicedev.sh"] 
+#par defaut demarer tous les service
+#CMD ["AllServicedev"]
+
+
